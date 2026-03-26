@@ -33,7 +33,7 @@ export function MowerMarker({ position, orientation }: MowerMarkerProps) {
       map.setView([position.lat, position.lng], 19);
       hasCentered.current = true;
     }
-  });  // No deps array — runs every render until we've centered
+  }, [map, position.lat, position.lng]);
 
   return (
     <Marker position={[position.lat, position.lng]} icon={MOWER_ICON}>

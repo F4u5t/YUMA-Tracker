@@ -16,7 +16,10 @@ export function useMowerState(): MowerState {
   // Initial REST fetch so the map centers immediately (before WS connects)
   useEffect(() => {
     getStatus()
-      .then((data) => setTelemetry(data as Telemetry))
+      .then((data) => {
+        if (data && typeof data === 'object' && 'error' in data) return;
+        setTelemetry(data as unknown as Telemetry);
+      })
       .catch(() => {});
   }, []);
 
@@ -24,7 +27,10 @@ export function useMowerState(): MowerState {
     if (msg.type === 'telemetry') {
       setTelemetry(msg as Telemetry);
     } else if (msg.type === 'sat_sample') {
-      setSatSamples((prev) => [...prev, msg as SatSample]);
+      setSatSamples((prev) => {
+        const next = [...prev, msg as SatSample];
+        return next.length > 6000 ? next.slice(-6000) : next;
+      });
     }
   }, []);
 

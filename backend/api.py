@@ -1,5 +1,7 @@
 """REST API endpoints for Faust Lawn Maintenance."""
 
+import asyncio
+
 from fastapi import APIRouter, HTTPException
 
 from mower_client import MowerClient
@@ -109,13 +111,11 @@ async def get_plans():
     # If incomplete, kick off a background sync and return what we have.
     # The frontend can call /api/plans/sync or refresh to get the full list.
     if not plans or client.plans_incomplete():
-        import asyncio
         asyncio.create_task(client.sync_plans())
         if not plans:
             # First time ever — wait briefly so we have something to show
-            import asyncio as _asyncio
             for _ in range(20):  # up to 10 s
-                await _asyncio.sleep(0.5)
+                await asyncio.sleep(0.5)
                 plans = client.get_plans()
                 if plans and not client.plans_incomplete():
                     break
@@ -198,7 +198,6 @@ async def refresh_telemetry():
 @router.post("/reconnect")
 async def reconnect():
     """Disconnect and reconnect the mower client (resets MQTT + token)."""
-    import asyncio
     asyncio.create_task(client.reconnect())
     return {"status": "reconnecting"}
 

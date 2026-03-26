@@ -8,7 +8,7 @@ interface MowerStatusProps {
   connected: boolean;
 }
 
-export function MowerStatus({ telemetry, connected }: MowerStatusProps) {
+export function MowerStatus({ telemetry, connected: wsConnected }: MowerStatusProps) {
   const statusLabel = SYS_STATUS_LABELS[telemetry?.sys_status ?? 0] ?? `Status ${telemetry?.sys_status}`;
   const online = telemetry?.online ?? false;
   const [reconnecting, setReconnecting] = useState(false);
@@ -44,6 +44,10 @@ export function MowerStatus({ telemetry, connected }: MowerStatusProps) {
         <div className="status-row">
           <span className="status-label">Heading</span>
           <span className="status-value">{telemetry?.orientation ?? 0}°</span>
+        </div>
+        <div className="status-row">
+          <span className="status-label">UI link</span>
+          <span className="status-value">{wsConnected ? 'Live' : '—'}</span>
         </div>
       </div>
       <button

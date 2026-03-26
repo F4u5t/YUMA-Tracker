@@ -1,4 +1,4 @@
-﻿"""Mammotion mower client — slim wrapper around PyMammotion."""
+"""Mammotion mower client — slim wrapper around PyMammotion."""
 
 from __future__ import annotations
 
@@ -7,13 +7,37 @@ import logging
 import math
 import os
 from datetime import datetime, timezone
+from pathlib import Path
 from typing import Any
 
 from dotenv import load_dotenv
 
-load_dotenv()
+load_dotenv(Path(__file__).resolve().parent / ".env")
 
 _LOGGER = logging.getLogger(__name__)
+
+
+def _patch_geojson_lon_lat_delta() -> None:
+    """Map frame x/y match report real_pos_x/real_pos_y; lon_lat_delta expects east,north = y,x.
+
+    Without swapping, zones and mow paths appear rotated vs satellite and vs device position.
+    Set MAMMOTION_MAP_XY_SWAP=1 in backend/.env to enable if zones look rotated vs mower.
+    Default is off (0) — matches upstream PyMammotion.
+    """
+    if os.getenv("MAMMOTION_MAP_XY_SWAP", "0").strip().lower() not in ("1", "true", "yes"):
+        return
+    from pymammotion.data.model.generate_geojson import GeojsonGenerator
+
+    _orig = GeojsonGenerator.lon_lat_delta
+
+    def _swapped(rtk, x, y):
+        return _orig(rtk, y, x)
+
+    GeojsonGenerator.lon_lat_delta = staticmethod(_swapped)
+    _LOGGER.info("GeojsonGenerator.lon_lat_delta: x/y swap active (MAMMOTION_MAP_XY_SWAP=1)")
+
+
+_patch_geojson_lon_lat_delta()
 
 
 def _to_degrees(raw: float) -> float:
@@ -25,6 +49,61 @@ def _to_degrees(raw: float) -> float:
     if raw == 0.0:
         return 0.0
     return raw if abs(raw) > math.pi else math.degrees(raw)
+
+
+def _wgs84_rtk_dock(loc):
+    """RTK anchor + dock in WGS84 and dock rotation — same as MowerStateManager.generate_geojson.
+
+    `loc.dock.latitude` / `longitude` are ENU east/north in meters (misnamed); not map degrees.
+    """
+    from pymammotion.utility.map import CoordinateConverter
+
+    coord = CoordinateConverter(loc.RTK.latitude, loc.RTK.longitude)
+    rtk_lla = coord.enu_to_lla(0, 0)
+    dock_lla = coord.enu_to_lla(loc.dock.latitude, loc.dock.longitude)
+    dock_rot = int(coord.get_transform_yaw_with_yaw(loc.dock.rotation) + 180)
+    return rtk_lla, dock_lla, dock_rot
+
+
+def _device_position_wgs84(loc, report_data, rapid) -> tuple[float, float]:
+    """Same WGS84 as boundaries + purple path: ``GeojsonGenerator.lon_lat_delta``.
+
+    PyMammotion's ``location.device`` uses ``enu_to_lla`` (ellipsoid). GeoJSON uses
+    flat ``lon_lat_delta`` at the RTK point — different math, so the icon used to drift.
+    We always use ``lon_lat_delta`` here (including the optional ``MAMMOTION_MAP_XY_SWAP``
+    patch on that function) so mower + lines + zones share one projection.
+
+    ENU: prefer ``mowing_state`` (rapid) — it updates every MQTT rapid packet. Using
+    ``report_data.locations[0]`` first can freeze the icon: that entry may stay stale
+    with non-zero ``real_pos_y`` while rapid keeps moving.
+
+    If no ENU, fall back to ``loc.device``.
+    """
+    from shapely.geometry import Point
+
+    from pymammotion.data.model.generate_geojson import GeojsonGenerator
+    from pymammotion.utility.conversions import parse_double
+
+    rtk_lla, _, _ = _wgs84_rtk_dock(loc)
+    rtk_point = Point(rtk_lla.latitude, rtk_lla.longitude)
+
+    locs = getattr(report_data, "locations", None) or []
+    ry = rx = None
+    # Same order as device.py: run_state_update (rapid) overwrites device often; prefer it.
+    if rapid is not None and getattr(rapid, "pos_y", 0) != 0:
+        ry = parse_double(rapid.pos_y, 4.0)
+        rx = parse_double(rapid.pos_x, 4.0)
+    elif locs and locs[0].real_pos_y != 0:
+        ry = parse_double(locs[0].real_pos_y, 4.0)
+        rx = parse_double(locs[0].real_pos_x, 4.0)
+
+    if ry is None or rx is None:
+        return loc.device.latitude, loc.device.longitude
+
+    lng, lat = GeojsonGenerator.lon_lat_delta(rtk_point, ry, rx)
+    if not math.isfinite(lat) or not math.isfinite(lng):
+        return loc.device.latitude, loc.device.longitude
+    return lat, lng
 
 
 class MowerClient:
@@ -70,7 +149,20 @@ class MowerClient:
         if not devices:
             raise RuntimeError("No mower devices found on this account")
 
-        self._device_name = next(iter(devices))
+        preferred = os.getenv("MAMMOTION_DEVICE_NAME", "").strip()
+        if preferred and preferred in devices:
+            self._device_name = preferred
+        elif preferred:
+            first = next(iter(devices))
+            _LOGGER.warning(
+                "MAMMOTION_DEVICE_NAME=%r not found on account (have: %s); using %s",
+                preferred,
+                ", ".join(devices),
+                first,
+            )
+            self._device_name = first
+        else:
+            self._device_name = next(iter(devices))
         device = devices[self._device_name]
         self._iot_id = device.iot_id
         _LOGGER.info("Found mower: %s (iot_id=%s)", self._device_name, self._iot_id)
@@ -240,27 +332,24 @@ class MowerClient:
         dev = state.report_data.dev
         rtk = state.report_data.rtk
 
-        # RTK base and dock positions are stored in radians by PyMammotion
-        rtk_lat = _to_degrees(loc.RTK.latitude)
-        rtk_lng = _to_degrees(loc.RTK.longitude)
-        dock_lat = _to_degrees(loc.dock.latitude)
-        dock_lng = _to_degrees(loc.dock.longitude)
+        rtk_lla, dock_lla, dock_rot = _wgs84_rtk_dock(loc)
 
-        # Mower position: PyMammotion computes location.device via ENU->LLA
-        # in both update_report_data and run_state_update. enu_to_lla returns
-        # degrees, so use the values directly.
-        lat = loc.device.latitude
-        lng = loc.device.longitude
+        lat, lng = _device_position_wgs84(loc, state.report_data, rapid)
 
-        # Sanity check — out-of-range means no fix yet
-        if abs(lat) > 90 or abs(lng) > 180:
+        # Sanity check — out-of-range or NaN means no fix yet
+        if (
+            not math.isfinite(lat)
+            or not math.isfinite(lng)
+            or abs(lat) > 90
+            or abs(lng) > 180
+        ):
             lat, lng = 0.0, 0.0
 
         return {
             "type": "telemetry",
             "position": {"lat": lat, "lng": lng},
-            "dock": {"lat": dock_lat, "lng": dock_lng, "rotation": loc.dock.rotation},
-            "rtk_base": {"lat": rtk_lat, "lng": rtk_lng},
+            "dock": {"lat": dock_lla.latitude, "lng": dock_lla.longitude, "rotation": dock_rot},
+            "rtk_base": {"lat": rtk_lla.latitude, "lng": rtk_lla.longitude},
             "battery": dev.battery_val,
             "charge_state": dev.charge_state,
             "satellites_total": rapid.satellites_total,
@@ -360,11 +449,14 @@ class MowerClient:
             from shapely.geometry import Point
 
             loc = state.location
+            rtk_lla, dock_lla, dock_rot = _wgs84_rtk_dock(loc)
+            # Point(x=lat°, y=lon°) per GeojsonGenerator.lon_lat_delta — matches
+            # pymammotion.data.mower_state_manager.MowerStateManager.generate_geojson
             return GeojsonGenerator.generate_geojson(
                 state.map,
-                Point(loc.RTK.longitude, loc.RTK.latitude),
-                Point(loc.dock.longitude, loc.dock.latitude),
-                loc.dock.rotation,
+                Point(rtk_lla.latitude, rtk_lla.longitude),
+                Point(dock_lla.latitude, dock_lla.longitude),
+                dock_rot,
             )
         except Exception:
             _LOGGER.exception("Failed to generate boundary GeoJSON")
@@ -387,16 +479,33 @@ class MowerClient:
         return result
 
     def get_mow_path_geojson(self) -> dict:
-        """Return current or last mowing path as GeoJSON."""
+        """Return current or last mowing path as GeoJSON.
+
+        Regenerates from map data with the same lon_lat_delta convention as boundaries
+        (cached generated_mow_path_geojson may predate the x/y swap patch).
+        """
         state = self.state
         if state is None:
             return {"type": "FeatureCollection", "features": []}
-        if state.map.generated_mow_path_geojson:
-            return {
-                "type": "FeatureCollection",
-                "features": list(state.map.generated_mow_path_geojson.values()),
-            }
-        return {"type": "FeatureCollection", "features": []}
+        try:
+            from pymammotion.data.model.generate_geojson import GeojsonGenerator
+            from shapely.geometry import Point
+
+            loc = state.location
+            rtk_lla, _, _ = _wgs84_rtk_dock(loc)
+            geo = GeojsonGenerator.generate_mow_path_geojson(
+                state.map,
+                Point(rtk_lla.latitude, rtk_lla.longitude),
+            )
+            return geo
+        except Exception:
+            _LOGGER.exception("Failed to generate mow path GeoJSON")
+            if state.map.generated_mow_path_geojson:
+                return {
+                    "type": "FeatureCollection",
+                    "features": list(state.map.generated_mow_path_geojson.values()),
+                }
+            return {"type": "FeatureCollection", "features": []}
 
     def _get_zone_name_map(self) -> dict[int, str]:
         state = self.state

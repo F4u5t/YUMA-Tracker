@@ -65,8 +65,11 @@ body {
 
 .topbar-right {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 16px;
+  justify-content: flex-end;
+  gap: 12px;
+  max-width: min(900px, 100%);
 }
 
 .main-content {
@@ -102,6 +105,7 @@ body {
 
 .sidebar-tab {
   flex: 1;
+  min-height: 44px;
   padding: 10px 8px;
   background: transparent;
   border: none;
@@ -224,7 +228,8 @@ body {
 
 /* ── Buttons ── */
 .btn {
-  padding: 8px 14px;
+  min-height: 44px;
+  padding: 10px 14px;
   border: none;
   border-radius: 6px;
   font-size: 13px;
@@ -243,6 +248,11 @@ body {
 .btn-blue { background: var(--accent-blue); color: #fff; }
 
 .btn-icon {
+  min-width: 44px;
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   background: transparent;
   border: none;
   color: var(--text-primary);
@@ -258,7 +268,8 @@ body {
 
 .btn-refresh {
   width: 100%;
-  padding: 8px;
+  min-height: 44px;
+  padding: 10px 8px;
   margin-top: 8px;
   background: var(--bg-primary);
   border: 1px solid var(--border);
@@ -269,7 +280,7 @@ body {
   transition: background 0.2s, color 0.2s;
 }
 .btn-refresh:hover {
-  background: var(--accent);
+  background: var(--accent-blue);
   color: #fff;
 }
 
@@ -363,10 +374,79 @@ body {
 .heatmap-toggle {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
+  min-height: 44px;
+  padding: 4px 4px 4px 0;
   font-size: 13px;
   cursor: pointer;
   color: var(--text-secondary);
+}
+
+.heatmap-toggle input {
+  width: 18px;
+  height: 18px;
+}
+
+/* Green zones + mow path alignment (top bar) */
+.overlay-align {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  color: var(--text-secondary);
+  min-height: 44px;
+}
+
+.overlay-align-label {
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-right: 4px;
+}
+
+.overlay-align-check {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.overlay-align-check input {
+  width: 16px;
+  height: 16px;
+}
+
+.overlay-align label {
+  white-space: nowrap;
+}
+
+.overlay-align input[type='range'] {
+  width: 72px;
+  min-height: 28px;
+}
+
+.overlay-align-value {
+  min-width: 2.5rem;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-primary);
+  font-size: 11px;
+}
+
+.overlay-align-reset {
+  padding: 6px 10px;
+  min-height: 36px;
+  font-size: 11px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--bg-primary);
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+
+.overlay-align-reset:hover {
+  border-color: var(--accent-blue);
+  color: var(--text-primary);
 }
 
 .heatmap-toggle input:checked + span {

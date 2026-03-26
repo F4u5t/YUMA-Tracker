@@ -13,10 +13,53 @@ import './App.css';
 
 type SidebarTab = 'dashboard' | 'tasks' | 'camera';
 
+const OVERLAY_ALIGN_STORAGE = 'yuma_overlay_align';
+const LEGACY_MOW_PATH_ROT = 'yuma_mow_path_rotation_deg';
+
+interface OverlayAlign {
+  mirrorEW: boolean;
+  mirrorNS: boolean;
+  rot: number;
+  eastM: number;
+  northM: number;
+}
+
+function readOverlayAlign(): OverlayAlign {
+  const defaults: OverlayAlign = {
+    mirrorEW: false,
+    mirrorNS: false,
+    rot: 0,
+    eastM: 0,
+    northM: 0,
+  };
+  try {
+    const raw = localStorage.getItem(OVERLAY_ALIGN_STORAGE);
+    if (raw) {
+      const j = JSON.parse(raw) as Partial<OverlayAlign>;
+      return {
+        mirrorEW: Boolean(j.mirrorEW),
+        mirrorNS: Boolean(j.mirrorNS),
+        rot: Number.isFinite(Number(j.rot)) ? Number(j.rot) : 0,
+        eastM: Number.isFinite(Number(j.eastM)) ? Number(j.eastM) : 0,
+        northM: Number.isFinite(Number(j.northM)) ? Number(j.northM) : 0,
+      };
+    }
+    const legacy = localStorage.getItem(LEGACY_MOW_PATH_ROT);
+    if (legacy != null && legacy !== '') {
+      const n = parseFloat(legacy);
+      return { ...defaults, rot: Number.isFinite(n) ? n : 0 };
+    }
+  } catch {
+    /* ignore */
+  }
+  return defaults;
+}
+
 function App() {
   const { telemetry, satSamples, connected } = useMowerState();
   const [boundaries, setBoundaries] = useState<GeoJSONFeatureCollection | null>(null);
   const [mowPath, setMowPath] = useState<GeoJSONFeatureCollection | null>(null);
+  const [overlayAlign, setOverlayAlign] = useState<OverlayAlign>(readOverlayAlign);
   const [showHeatmap, setShowHeatmap] = useState(false);
   const [selectedTaskZones, setSelectedTaskZones] = useState<number[]>([]);
   const [activeTab, setActiveTab] = useState<SidebarTab>('dashboard');
@@ -36,6 +79,14 @@ function App() {
     }, 15000);
     return () => clearInterval(interval);
   }, []);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(OVERLAY_ALIGN_STORAGE, JSON.stringify(overlayAlign));
+    } catch {
+      /* ignore */
+    }
+  }, [overlayAlign]);
 
   const handleSelectTask = useCallback((zoneHashs: number[]) => {
     setSelectedTaskZones(zoneHashs);
@@ -65,6 +116,86 @@ function App() {
             />
             <span>Satellite Heatmap</span>
           </label>
+          <div
+            className="overlay-align"
+            title="Mirror = flip overlay across RTK pivot. Then rotate, then shift. Saved in browser."
+          >
+            <span className="overlay-align-label">Align</span>
+            <label className="overlay-align-check">
+              <input
+                type="checkbox"
+                checked={overlayAlign.mirrorEW}
+                onChange={(e) =>
+                  setOverlayAlign((o) => ({ ...o, mirrorEW: e.target.checked }))
+                }
+              />
+              flip E↔W
+            </label>
+            <label className="overlay-align-check">
+              <input
+                type="checkbox"
+                checked={overlayAlign.mirrorNS}
+                onChange={(e) =>
+                  setOverlayAlign((o) => ({ ...o, mirrorNS: e.target.checked }))
+                }
+              />
+              flip N↔S
+            </label>
+            <label htmlFor="overlay-rot">°</label>
+            <input
+              id="overlay-rot"
+              type="range"
+              min="-90"
+              max="90"
+              step="0.5"
+              value={overlayAlign.rot}
+              onChange={(e) =>
+                setOverlayAlign((o) => ({ ...o, rot: parseFloat(e.target.value) }))
+              }
+            />
+            <span className="overlay-align-value">{overlayAlign.rot.toFixed(1)}°</span>
+            <label htmlFor="overlay-e">E</label>
+            <input
+              id="overlay-e"
+              type="range"
+              min="-40"
+              max="40"
+              step="1"
+              value={overlayAlign.eastM}
+              onChange={(e) =>
+                setOverlayAlign((o) => ({ ...o, eastM: parseFloat(e.target.value) }))
+              }
+            />
+            <span className="overlay-align-value">{overlayAlign.eastM}m</span>
+            <label htmlFor="overlay-n">N</label>
+            <input
+              id="overlay-n"
+              type="range"
+              min="-40"
+              max="40"
+              step="1"
+              value={overlayAlign.northM}
+              onChange={(e) =>
+                setOverlayAlign((o) => ({ ...o, northM: parseFloat(e.target.value) }))
+              }
+            />
+            <span className="overlay-align-value">{overlayAlign.northM}m</span>
+            <button
+              type="button"
+              className="overlay-align-reset"
+              onClick={() =>
+                setOverlayAlign({
+                  mirrorEW: false,
+                  mirrorNS: false,
+                  rot: 0,
+                  eastM: 0,
+                  northM: 0,
+                })
+              }
+            >
+              Reset
+            </button>
+          </div>
           <span className={`connection-dot ${connected ? 'connected' : 'disconnected'}`} />
         </div>
       </header>
@@ -79,6 +210,11 @@ function App() {
             mowPath={mowPath}
             showHeatmap={showHeatmap}
             selectedTaskZones={selectedTaskZones}
+            overlayMirrorEW={overlayAlign.mirrorEW}
+            overlayMirrorNS={overlayAlign.mirrorNS}
+            overlayRotationDeg={overlayAlign.rot}
+            overlayEastM={overlayAlign.eastM}
+            overlayNorthM={overlayAlign.northM}
           />
         </div>
 
