@@ -1,0 +1,33 @@
+version: "3.8"
+
+services:
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    expose:
+      - "80"
+    depends_on:
+      - backend
+    networks:
+      - dokploy-network
+      - internal
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    expose:
+      - "18080"
+    env_file:
+      - .env
+    networks:
+      - internal
+
+networks:
+  dokploy-network:
+    external: true
+  internal:
+    driver: bridge
