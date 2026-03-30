@@ -22,7 +22,7 @@ services:
     expose:
       - "18080"
     env_file:
-      - .env
+      - ./backend/.env
     networks:
       - internal
 
