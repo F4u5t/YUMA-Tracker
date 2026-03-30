@@ -5,7 +5,7 @@ services:
       dockerfile: Dockerfile
     restart: unless-stopped
     ports:
-      - "9090:80"
+      - "1005:80"
     depends_on:
       - backend
 
