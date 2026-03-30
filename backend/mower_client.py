@@ -146,11 +146,11 @@ class MowerClient:
         # Monkey-patch CloudIOTGateway to skip get_shared_notice_list
         # which crashes on pymammotion 0.7.x due to a ShareNotification model change
         try:
+            from types import SimpleNamespace
             from pymammotion.aliyun.cloud_gateway import CloudIOTGateway
-            _original_login = CloudIOTGateway.get_shared_notice_list
             async def _noop_shared_notice(self_gw):
                 _LOGGER.warning("Skipping get_shared_notice_list (model incompatibility)")
-                return None
+                return SimpleNamespace(data=None)
             CloudIOTGateway.get_shared_notice_list = _noop_shared_notice
         except (ImportError, AttributeError):
             pass
