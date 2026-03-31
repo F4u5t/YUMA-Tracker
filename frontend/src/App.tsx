@@ -46,8 +46,8 @@ interface OverlayAlign {
 
 const OVERLAY_DEFAULTS: OverlayAlign = { mirrorEW: false, mirrorNS: false, rot: -36, eastM: 5, northM: -32 };
 
-interface TrailAlign { rot: number; eastM: number; northM: number; }
-const TRAIL_ALIGN_DEFAULTS: TrailAlign = { rot: 0, eastM: 0, northM: 0 };
+interface TrailAlign { mirrorEW: boolean; mirrorNS: boolean; rot: number; eastM: number; northM: number; }
+const TRAIL_ALIGN_DEFAULTS: TrailAlign = { mirrorEW: false, mirrorNS: false, rot: 0, eastM: 0, northM: 0 };
 
 // Legacy localStorage keys — used for one-time migration to server-side storage
 const OVERLAY_ALIGN_STORAGE = 'yuma_overlay_align';
@@ -109,12 +109,12 @@ function App() {
             const legacy = readLegacyOverlay();
             const align = legacy ?? OVERLAY_DEFAULTS;
             setOverlayAlign(align);
-            saveOverlaySettings({ ...align, trailRot: 0, trailEastM: 0, trailNorthM: 0 }).catch(() => {});
+            saveOverlaySettings({ ...align, trailMirrorEW: false, trailMirrorNS: false, trailRot: 0, trailEastM: 0, trailNorthM: 0 }).catch(() => {});
             overlayReady.current = true;
             return;
           }
           setOverlayAlign(s as OverlayAlign);
-          setTrailAlign({ rot: s.trailRot ?? 0, eastM: s.trailEastM ?? 0, northM: s.trailNorthM ?? 0 });
+          setTrailAlign({ mirrorEW: s.trailMirrorEW ?? false, mirrorNS: s.trailMirrorNS ?? false, rot: s.trailRot ?? 0, eastM: s.trailEastM ?? 0, northM: s.trailNorthM ?? 0 });
           overlayReady.current = true;
         })
         .catch(() => { if (!cancelled) setTimeout(tryLoad, 3000); });
@@ -161,6 +161,8 @@ function App() {
     const t = setTimeout(() => {
       saveOverlaySettings({
         ...overlayAlign,
+        trailMirrorEW: trailAlign.mirrorEW,
+        trailMirrorNS: trailAlign.mirrorNS,
         trailRot: trailAlign.rot,
         trailEastM: trailAlign.eastM,
         trailNorthM: trailAlign.northM,
@@ -304,6 +306,22 @@ function App() {
           </button>
           {showTrailAlignControls && (
             <div className="overlay-align" title="Shift/rotate trail points independently from zone overlay">
+              <label className="overlay-align-check">
+                <input
+                  type="checkbox"
+                  checked={trailAlign.mirrorEW}
+                  onChange={(e) => setTrailAlign((o) => ({ ...o, mirrorEW: e.target.checked }))}
+                />
+                flip E↔W
+              </label>
+              <label className="overlay-align-check">
+                <input
+                  type="checkbox"
+                  checked={trailAlign.mirrorNS}
+                  onChange={(e) => setTrailAlign((o) => ({ ...o, mirrorNS: e.target.checked }))}
+                />
+                flip N↔S
+              </label>
               <label htmlFor="trail-rot">°</label>
               <input
                 id="trail-rot"
@@ -366,6 +384,8 @@ function App() {
             overlayRotationDeg={overlayAlign.rot}
             overlayEastM={overlayAlign.eastM}
             overlayNorthM={overlayAlign.northM}
+            trailMirrorEW={trailAlign.mirrorEW}
+            trailMirrorNS={trailAlign.mirrorNS}
             trailRotationDeg={trailAlign.rot}
             trailEastM={trailAlign.eastM}
             trailNorthM={trailAlign.northM}

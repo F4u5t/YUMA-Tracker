@@ -62,6 +62,8 @@ export interface OverlaySettings {
   eastM: number;
   northM: number;
   /** Independent alignment for trail/track points (GPS coords, separate from zone projection) */
+  trailMirrorEW: boolean;
+  trailMirrorNS: boolean;
   trailRot: number;
   trailEastM: number;
   trailNorthM: number;

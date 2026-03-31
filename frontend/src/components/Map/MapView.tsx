@@ -27,6 +27,8 @@ interface MapViewProps {
   overlayEastM: number;
   overlayNorthM: number;
   /** Separate alignment applied only to trail points (independent of zone overlay) */
+  trailMirrorEW: boolean;
+  trailMirrorNS: boolean;
   trailRotationDeg: number;
   trailEastM: number;
   trailNorthM: number;
@@ -85,6 +87,8 @@ export function MapView({
   overlayRotationDeg,
   overlayEastM,
   overlayNorthM,
+  trailMirrorEW,
+  trailMirrorNS,
   trailRotationDeg,
   trailEastM,
   trailNorthM,
@@ -104,18 +108,18 @@ export function MapView({
       overlayMirrorEW, overlayMirrorNS, overlayRotationDeg, overlayEastM, overlayNorthM
     );
     // Then apply optional trail fine-tune
-    if (trailRotationDeg === 0 && trailEastM === 0 && trailNorthM === 0) {
+    if (!trailMirrorEW && !trailMirrorNS && trailRotationDeg === 0 && trailEastM === 0 && trailNorthM === 0) {
       return { lat: lat1, lng: lng1 };
     }
     const [lng2, lat2] = alignLonLat(
       lng1, lat1, pivotLng, pivotLat,
-      false, false, trailRotationDeg, trailEastM, trailNorthM
+      trailMirrorEW, trailMirrorNS, trailRotationDeg, trailEastM, trailNorthM
     );
     return { lat: lat2, lng: lng2 };
   }, [
     telemetry, pivotLng, pivotLat,
     overlayMirrorEW, overlayMirrorNS, overlayRotationDeg, overlayEastM, overlayNorthM,
-    trailRotationDeg, trailEastM, trailNorthM,
+    trailMirrorEW, trailMirrorNS, trailRotationDeg, trailEastM, trailNorthM,
   ]);
 
   const dockDisplay = useMemo(() => {
@@ -229,19 +233,19 @@ export function MapView({
         overlayMirrorEW, overlayMirrorNS, overlayRotationDeg, overlayEastM, overlayNorthM
       );
       // Then apply optional fine-tune trail adjustment on top
-      if (trailRotationDeg === 0 && trailEastM === 0 && trailNorthM === 0) {
+      if (!trailMirrorEW && !trailMirrorNS && trailRotationDeg === 0 && trailEastM === 0 && trailNorthM === 0) {
         return { ...p, lat: lat1, lng: lng1 };
       }
       const [lng2, lat2] = alignLonLat(
         lng1, lat1, pivotLng, pivotLat,
-        false, false, trailRotationDeg, trailEastM, trailNorthM
+        trailMirrorEW, trailMirrorNS, trailRotationDeg, trailEastM, trailNorthM
       );
       return { ...p, lat: lat2, lng: lng2 };
     });
   }, [
     trailPoints, pivotLng, pivotLat,
     overlayMirrorEW, overlayMirrorNS, overlayRotationDeg, overlayEastM, overlayNorthM,
-    trailRotationDeg, trailEastM, trailNorthM,
+    trailMirrorEW, trailMirrorNS, trailRotationDeg, trailEastM, trailNorthM,
   ]);
 
   return (
