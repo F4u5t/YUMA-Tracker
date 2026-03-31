@@ -8,6 +8,7 @@ export interface MowerState {
   satSamples: SatSample[];
   connected: boolean;
   loading: boolean;
+  forceRefresh: () => Promise<void>;
 }
 
 export function useMowerState(): MowerState {
@@ -58,5 +59,12 @@ export function useMowerState(): MowerState {
 
   const { connected } = useWebSocket(handleMessage);
 
-  return { telemetry, satSamples, connected, loading };
+  const forceRefresh = useCallback(async () => {
+    const data = await getStatus();
+    if (data && typeof data === 'object' && !('error' in data)) {
+      setTelemetry(data as unknown as Telemetry);
+    }
+  }, []);
+
+  return { telemetry, satSamples, connected, loading, forceRefresh };
 }

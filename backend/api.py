@@ -179,6 +179,7 @@ async def pause():
     ok = await client.pause()
     if not ok:
         raise HTTPException(502, "Failed to pause")
+    asyncio.create_task(client.request_telemetry())
     return {"status": "paused"}
 
 
@@ -187,6 +188,7 @@ async def resume():
     ok = await client.resume()
     if not ok:
         raise HTTPException(502, "Failed to resume")
+    asyncio.create_task(client.request_telemetry())
     return {"status": "resumed"}
 
 

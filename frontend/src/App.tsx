@@ -9,11 +9,32 @@ import { MowerStatus } from './components/Dashboard/MowerStatus';
 import { TaskList } from './components/Tasks/TaskList';
 import { CameraPanel } from './components/Camera/CameraPanel';
 import { SessionHistory } from './components/Dashboard/SessionHistory';
-import { getBoundaries, getMowPath, refreshTelemetry, getOverlaySettings, saveOverlaySettings } from './services/api';
+import { getBoundaries, getMowPath, getOverlaySettings, saveOverlaySettings } from './services/api';
 import type { GeoJSONFeatureCollection } from './types/mower';
 import './App.css';
 
 type SidebarTab = 'dashboard' | 'tasks' | 'camera' | 'trail';
+
+function RefreshButton({ forceRefresh }: { forceRefresh: () => Promise<void> }) {
+  const [busy, setBusy] = useState(false);
+  const [done, setDone] = useState(false);
+  const handleClick = async () => {
+    setBusy(true);
+    setDone(false);
+    try {
+      await forceRefresh();
+      setDone(true);
+      setTimeout(() => setDone(false), 2000);
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <button className="btn-refresh" onClick={handleClick} disabled={busy}>
+      {busy ? '⟳ Refreshing…' : done ? '✓ Updated' : '🔄 Refresh Data'}
+    </button>
+  );
+}
 
 interface OverlayAlign {
   mirrorEW: boolean;
@@ -56,7 +77,7 @@ function readLegacyOverlay(): OverlayAlign | null {
 }
 
 function App() {
-  const { telemetry, satSamples, connected, loading } = useMowerState();
+  const { telemetry, satSamples, connected, loading, forceRefresh } = useMowerState();
   const [boundaries, setBoundaries] = useState<GeoJSONFeatureCollection | null>(null);
   const [mowPath, setMowPath] = useState<GeoJSONFeatureCollection | null>(null);
   const [overlayAlign, setOverlayAlign] = useState<OverlayAlign>(OVERLAY_DEFAULTS);
@@ -392,12 +413,7 @@ function App() {
                     onClearSessions={clearSessions}
                   />
                   <SatelliteInfo telemetry={telemetry} />
-                  <button
-                    className="btn-refresh"
-                    onClick={() => refreshTelemetry().catch(console.error)}
-                  >
-                    🔄 Refresh Data
-                  </button>
+                  <RefreshButton forceRefresh={forceRefresh} />
                 </>
               )}
               {activeTab === 'tasks' && (
