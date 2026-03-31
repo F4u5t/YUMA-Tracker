@@ -58,7 +58,7 @@ function readOverlayAlign(): OverlayAlign {
 }
 
 function App() {
-  const { telemetry, satSamples, connected } = useMowerState();
+  const { telemetry, satSamples, connected, loading } = useMowerState();
   const [boundaries, setBoundaries] = useState<GeoJSONFeatureCollection | null>(null);
   const [mowPath, setMowPath] = useState<GeoJSONFeatureCollection | null>(null);
   const [overlayAlign, setOverlayAlign] = useState<OverlayAlign>(readOverlayAlign);
@@ -105,6 +105,12 @@ function App() {
 
   return (
     <div className="app">
+      {loading && (
+        <div className="loading-screen">
+          <div className="loading-spinner" />
+          <p className="loading-text">Connecting to mower…</p>
+        </div>
+      )}
       {/* Top bar */}
       <header className="topbar">
         <div className="topbar-left">
