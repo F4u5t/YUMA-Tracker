@@ -122,6 +122,7 @@ class MowerClient:
         self._initialized = True
         self._mammotion = None
         self._device_name: str = ""
+        self._device_nick_name: str = ""
         self._iot_id: str = ""
         self._account: str = ""
         self._ws_clients: list[Any] = []
@@ -178,7 +179,8 @@ class MowerClient:
             self._device_name = next(iter(devices))
         device = devices[self._device_name]
         self._iot_id = device.iot_id
-        _LOGGER.info("Found mower: %s (iot_id=%s)", self._device_name, self._iot_id)
+        self._device_nick_name = device._device.nick_name or self._device_name
+        _LOGGER.info("Found mower: %s nick=%r (iot_id=%s)", self._device_name, self._device_nick_name, self._iot_id)
 
         # Give MQTT connections a moment to establish
         _LOGGER.info("Waiting for MQTT connections (5s)...")
@@ -213,6 +215,7 @@ class MowerClient:
         await self.disconnect()
         self._mammotion = None
         self._device_name = ""
+        self._device_nick_name = ""
         self._iot_id = ""
         self._last_state = {}
         try:
@@ -377,7 +380,7 @@ class MowerClient:
             "gps_stars": rtk.gps_stars,
             "co_view_stars": rtk.co_view_stars,
             "wifi_rssi": state.report_data.connect.wifi_rssi,
-            "device_name": self._device_name,
+            "device_name": self._device_nick_name or self._device_name,
             "online": state.online,
             "timestamp": datetime.now(timezone.utc).isoformat(),
         }
