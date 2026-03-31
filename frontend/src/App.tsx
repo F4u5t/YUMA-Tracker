@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useMowerState } from './hooks/useMowerState';
 import { useBatteryTracker } from './hooks/useBatteryTracker';
 import { useTrailTracker } from './hooks/useTrailTracker';
@@ -25,6 +25,33 @@ interface OverlayAlign {
 
 const OVERLAY_DEFAULTS: OverlayAlign = { mirrorEW: false, mirrorNS: false, rot: 0, eastM: 0, northM: 0 };
 
+// Legacy localStorage keys — used for one-time migration to server-side storage
+const OVERLAY_ALIGN_STORAGE = 'yuma_overlay_align';
+const LEGACY_MOW_PATH_ROT = 'yuma_mow_path_rotation_deg';
+
+function readLegacyOverlay(): OverlayAlign | null {
+  try {
+    const raw = localStorage.getItem(OVERLAY_ALIGN_STORAGE);
+    if (raw) {
+      const j = JSON.parse(raw) as Partial<OverlayAlign>;
+      const r: OverlayAlign = {
+        mirrorEW: Boolean(j.mirrorEW),
+        mirrorNS: Boolean(j.mirrorNS),
+        rot: Number.isFinite(Number(j.rot)) ? Number(j.rot) : 0,
+        eastM: Number.isFinite(Number(j.eastM)) ? Number(j.eastM) : 0,
+        northM: Number.isFinite(Number(j.northM)) ? Number(j.northM) : 0,
+      };
+      if (r.mirrorEW || r.mirrorNS || r.rot !== 0 || r.eastM !== 0 || r.northM !== 0) return r;
+    }
+    const legacy = localStorage.getItem(LEGACY_MOW_PATH_ROT);
+    if (legacy) {
+      const n = parseFloat(legacy);
+      if (Number.isFinite(n) && n !== 0) return { ...OVERLAY_DEFAULTS, rot: n };
+    }
+  } catch {}
+  return null;
+}
+
 function App() {
   const { telemetry, satSamples, connected, loading } = useMowerState();
   const [boundaries, setBoundaries] = useState<GeoJSONFeatureCollection | null>(null);
@@ -36,12 +63,39 @@ function App() {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [activeTaskName, setActiveTaskName] = useState('');
   const [showAlignControls, setShowAlignControls] = useState(false);
+  const overlayReady = useRef(false);
 
   const { activeSession, sessions, clearSessions } = useBatteryTracker(telemetry, activeTaskName);
   const { liveTrail, sessions: trailSessions, replaySession, setReplaySession, clearSessions: clearTrail } = useTrailTracker(telemetry);
 
   // Trail points to show: replay session if selected, otherwise live
   const displayTrail = replaySession ? replaySession.points : liveTrail;
+
+  // Load overlay settings from server; migrate from localStorage if server has all-defaults
+  useEffect(() => {
+    let cancelled = false;
+    const tryLoad = () => {
+      getOverlaySettings()
+        .then((s) => {
+          if (cancelled) return;
+          const isDefault = !s.mirrorEW && !s.mirrorNS && s.rot === 0 && s.eastM === 0 && s.northM === 0;
+          if (isDefault) {
+            const legacy = readLegacyOverlay();
+            if (legacy) {
+              setOverlayAlign(legacy);
+              saveOverlaySettings(legacy).catch(() => {});
+              overlayReady.current = true;
+              return;
+            }
+          }
+          setOverlayAlign(s as OverlayAlign);
+          overlayReady.current = true;
+        })
+        .catch(() => { if (!cancelled) setTimeout(tryLoad, 3000); });
+    };
+    tryLoad();
+    return () => { cancelled = true; };
+  }, []);
 
   // Load map data on mount — retry until successful
   useEffect(() => {
@@ -63,7 +117,6 @@ function App() {
 
     fetchWithRetry(getBoundaries, setBoundaries);
     fetchWithRetry(getMowPath, setMowPath);
-    fetchWithRetry(getOverlaySettings, (s) => setOverlayAlign(s as OverlayAlign));
 
     // Refresh mow path periodically after initial load
     const interval = setInterval(() => {
@@ -76,8 +129,9 @@ function App() {
     };
   }, []);
 
-  // Debounced save to backend (avoid flooding on slider drag)
+  // Debounced save — only after initial server load to avoid overwriting with defaults
   useEffect(() => {
+    if (!overlayReady.current) return;
     const t = setTimeout(() => { saveOverlaySettings(overlayAlign).catch(() => {}); }, 600);
     return () => clearTimeout(t);
   }, [overlayAlign]);
