@@ -97,27 +97,28 @@ export function MapView({
 
   const mowerDisplay = useMemo(() => {
     if (!telemetry || (telemetry.position.lat === 0 && telemetry.position.lng === 0)) return null;
+    if (trailRotationDeg === 0 && trailEastM === 0 && trailNorthM === 0) {
+      return { lat: telemetry.position.lat, lng: telemetry.position.lng };
+    }
     const [lng, lat] = alignLonLat(
       telemetry.position.lng,
       telemetry.position.lat,
       pivotLng,
       pivotLat,
-      overlayMirrorEW,
-      overlayMirrorNS,
-      overlayRotationDeg,
-      overlayEastM,
-      overlayNorthM
+      false,
+      false,
+      trailRotationDeg,
+      trailEastM,
+      trailNorthM
     );
     return { lat, lng };
   }, [
     telemetry,
     pivotLng,
     pivotLat,
-    overlayMirrorEW,
-    overlayMirrorNS,
-    overlayRotationDeg,
-    overlayEastM,
-    overlayNorthM,
+    trailRotationDeg,
+    trailEastM,
+    trailNorthM,
   ]);
 
   const dockDisplay = useMemo(() => {

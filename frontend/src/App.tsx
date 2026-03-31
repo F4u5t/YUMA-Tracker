@@ -23,7 +23,7 @@ interface OverlayAlign {
   northM: number;
 }
 
-const OVERLAY_DEFAULTS: OverlayAlign = { mirrorEW: false, mirrorNS: false, rot: 0, eastM: 0, northM: 0 };
+const OVERLAY_DEFAULTS: OverlayAlign = { mirrorEW: true, mirrorNS: true, rot: -36, eastM: 5, northM: -32 };
 
 interface TrailAlign { rot: number; eastM: number; northM: number; }
 const TRAIL_ALIGN_DEFAULTS: TrailAlign = { rot: 0, eastM: 0, northM: 0 };
@@ -86,12 +86,11 @@ function App() {
           const isDefault = !s.mirrorEW && !s.mirrorNS && s.rot === 0 && s.eastM === 0 && s.northM === 0;
           if (isDefault) {
             const legacy = readLegacyOverlay();
-            if (legacy) {
-              setOverlayAlign(legacy);
-              saveOverlaySettings({ ...legacy, trailRot: 0, trailEastM: 0, trailNorthM: 0 }).catch(() => {});
-              overlayReady.current = true;
-              return;
-            }
+            const align = legacy ?? OVERLAY_DEFAULTS;
+            setOverlayAlign(align);
+            saveOverlaySettings({ ...align, trailRot: 0, trailEastM: 0, trailNorthM: 0 }).catch(() => {});
+            overlayReady.current = true;
+            return;
           }
           setOverlayAlign(s as OverlayAlign);
           setTrailAlign({ rot: s.trailRot ?? 0, eastM: s.trailEastM ?? 0, northM: s.trailNorthM ?? 0 });
@@ -288,8 +287,8 @@ function App() {
               <input
                 id="trail-rot"
                 type="range"
-                min="-90"
-                max="90"
+                min="-180"
+                max="180"
                 step="0.5"
                 value={trailAlign.rot}
                 onChange={(e) => setTrailAlign((o) => ({ ...o, rot: parseFloat(e.target.value) }))}
