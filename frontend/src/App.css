@@ -496,3 +496,88 @@ body {
 .leaflet-container {
   background: var(--bg-primary);
 }
+
+/* ── Trail Sessions ── */
+.session-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  background: none;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  padding: 7px 8px;
+  margin-bottom: 4px;
+  cursor: pointer;
+  text-align: left;
+  color: var(--text-primary);
+  transition: background 0.15s;
+}
+.session-row:hover {
+  background: #334155;
+}
+.session-row-active {
+  border-color: var(--accent-blue);
+  background: rgba(59,130,246,0.12);
+}
+.session-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.session-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.session-label {
+  font-size: 0.82rem;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.session-meta {
+  font-size: 0.72rem;
+  color: var(--text-secondary);
+}
+.session-empty {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  padding: 8px 0;
+}
+.btn-small {
+  font-size: 0.72rem;
+  padding: 2px 8px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-weight: 600;
+}
+.btn-red {
+  background: var(--accent-red);
+  color: #fff;
+}
+.trail-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 12px;
+  margin-top: 10px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
+}
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 0.7rem;
+  color: var(--text-secondary);
+}
+.legend-swatch {
+  width: 14px;
+  height: 4px;
+  border-radius: 2px;
+  flex-shrink: 0;
+}

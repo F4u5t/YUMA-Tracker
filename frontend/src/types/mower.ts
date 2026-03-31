@@ -102,6 +102,32 @@ export interface BatterySession {
   endPct?: number;      // set when session ends
   durationMs?: number;
 }
+export interface TrailPoint {
+  lat: number;
+  lng: number;
+  sys_status: number;
+  ts: number; // epoch ms
+}
+
+export interface TrailSession {
+  id: string;         // ISO start timestamp
+  label: string;      // e.g. "Mowing · Mar 31"
+  startTs: number;
+  endTs: number;
+  points: TrailPoint[];
+}
+
+/** Color per sys_status for trail rendering */
+export const STATUS_TRAIL_COLOR: Record<number, string> = {
+  13: '#22c55e',  // Mowing        — green
+  20: '#86efac',  // Manual Mowing — light green
+  14: '#f97316',  // Returning     — orange
+  15: '#3b82f6',  // Charging      — blue
+  19: '#eab308',  // Paused        — yellow
+  11: '#a78bfa',  // Ready         — purple
+};
+export const DEFAULT_TRAIL_COLOR = '#94a3b8'; // slate for everything else
+
 export const SYS_STATUS_LABELS: Record<number, string> = {
   0: 'Not Active',
   1: 'Online',

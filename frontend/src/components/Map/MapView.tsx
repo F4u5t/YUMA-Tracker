@@ -1,7 +1,7 @@
 import { MapContainer, TileLayer, LayersControl, useMap } from 'react-leaflet';
 import { useEffect, useMemo, useRef } from 'react';
 import L from 'leaflet';
-import type { Telemetry, SatSample, GeoJSONFeatureCollection } from '../../types/mower';
+import type { Telemetry, SatSample, GeoJSONFeatureCollection, TrailPoint } from '../../types/mower';
 import { alignGeoJSON, alignLonLat } from '../../utils/geoRotate';
 import { getAlignmentPivot } from '../../utils/mapPivot';
 import { MowerMarker } from './MowerMarker';
@@ -9,6 +9,7 @@ import { DockMarker } from './DockMarker';
 import { ZoneLayer } from './ZoneLayer';
 import { MowPathLayer } from './MowPathLayer';
 import { SatelliteHeatmap } from './SatelliteHeatmap';
+import { TrailLayer } from './TrailLayer';
 import 'leaflet/dist/leaflet.css';
 
 interface MapViewProps {
@@ -18,6 +19,7 @@ interface MapViewProps {
   mowPath: GeoJSONFeatureCollection | null;
   showHeatmap: boolean;
   selectedTaskZones: number[];
+  trailPoints?: TrailPoint[];
   /** Green zones + purple mow path: optional mirror, rotate (°), shift (m) around RTK pivot */
   overlayMirrorEW: boolean;
   overlayMirrorNS: boolean;
@@ -73,6 +75,7 @@ export function MapView({
   mowPath,
   showHeatmap,
   selectedTaskZones,
+  trailPoints,
   overlayMirrorEW,
   overlayMirrorNS,
   overlayRotationDeg,
@@ -257,6 +260,9 @@ export function MapView({
         <DockMarker position={dockDisplay} />
       )}
       {showHeatmap && <SatelliteHeatmap samples={alignedSatSamples} />}
+      {trailPoints && trailPoints.length > 1 && (
+        <TrailLayer points={trailPoints} />
+      )}
     </MapContainer>
   );
 }

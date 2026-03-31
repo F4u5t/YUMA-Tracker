@@ -1,17 +1,19 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useMowerState } from './hooks/useMowerState';
 import { useBatteryTracker } from './hooks/useBatteryTracker';
+import { useTrailTracker } from './hooks/useTrailTracker';
 import { MapView } from './components/Map/MapView';
 import { BatteryGauge } from './components/Dashboard/BatteryGauge';
 import { SatelliteInfo } from './components/Dashboard/SatelliteInfo';
 import { MowerStatus } from './components/Dashboard/MowerStatus';
 import { TaskList } from './components/Tasks/TaskList';
 import { CameraPanel } from './components/Camera/CameraPanel';
+import { SessionHistory } from './components/Dashboard/SessionHistory';
 import { getBoundaries, getMowPath, refreshTelemetry } from './services/api';
 import type { GeoJSONFeatureCollection } from './types/mower';
 import './App.css';
 
-type SidebarTab = 'dashboard' | 'tasks' | 'camera';
+type SidebarTab = 'dashboard' | 'tasks' | 'camera' | 'trail';
 
 const OVERLAY_ALIGN_STORAGE = 'yuma_overlay_align';
 const LEGACY_MOW_PATH_ROT = 'yuma_mow_path_rotation_deg';
@@ -67,6 +69,10 @@ function App() {
   const [activeTaskName, setActiveTaskName] = useState('');
 
   const { activeSession, sessions, clearSessions } = useBatteryTracker(telemetry, activeTaskName);
+  const { liveTrail, sessions: trailSessions, replaySession, setReplaySession, clearSessions: clearTrail } = useTrailTracker(telemetry);
+
+  // Trail points to show: replay session if selected, otherwise live
+  const displayTrail = replaySession ? replaySession.points : liveTrail;
 
   // Load map data on mount
   useEffect(() => {
@@ -210,6 +216,7 @@ function App() {
             mowPath={mowPath}
             showHeatmap={showHeatmap}
             selectedTaskZones={selectedTaskZones}
+            trailPoints={displayTrail}
             overlayMirrorEW={overlayAlign.mirrorEW}
             overlayMirrorNS={overlayAlign.mirrorNS}
             overlayRotationDeg={overlayAlign.rot}
@@ -240,6 +247,12 @@ function App() {
               >
                 📷 Camera
               </button>
+              <button
+                className={`sidebar-tab ${activeTab === 'trail' ? 'active' : ''}`}
+                onClick={() => setActiveTab('trail')}
+              >
+                🗺️ Trail
+              </button>
             </div>
 
             <div className="sidebar-content">
@@ -266,6 +279,15 @@ function App() {
               )}
               {activeTab === 'camera' && (
                 <CameraPanel />
+              )}
+              {activeTab === 'trail' && (
+                <SessionHistory
+                  sessions={trailSessions}
+                  liveTrail={liveTrail}
+                  replaySession={replaySession}
+                  onSelectSession={setReplaySession}
+                  onClear={clearTrail}
+                />
               )}
             </div>
           </aside>
