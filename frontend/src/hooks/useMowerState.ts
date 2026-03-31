@@ -1,7 +1,7 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import type { Telemetry, SatSample, WSMessage } from '../types/mower';
 import { useWebSocket } from './useWebSocket';
-import { getStatus } from '../services/api';
+import { getStatus, refreshTelemetry } from '../services/api';
 
 export interface MowerState {
   telemetry: Telemetry | null;
@@ -60,8 +60,8 @@ export function useMowerState(): MowerState {
   const { connected } = useWebSocket(handleMessage);
 
   const forceRefresh = useCallback(async () => {
-    const data = await getStatus();
-    if (data && typeof data === 'object' && !('error' in data)) {
+    const data = await refreshTelemetry();
+    if (data && typeof data === 'object' && !('error' in data) && 'sys_status' in data) {
       setTelemetry(data as unknown as Telemetry);
     }
   }, []);

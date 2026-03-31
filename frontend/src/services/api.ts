@@ -48,7 +48,7 @@ export function getCameraToken() {
 }
 
 export function refreshTelemetry() {
-  return request<{ status: string }>('/refresh', { method: 'POST' });
+  return request<Record<string, unknown>>('/refresh', { method: 'POST' });
 }
 
 export function reconnect() {

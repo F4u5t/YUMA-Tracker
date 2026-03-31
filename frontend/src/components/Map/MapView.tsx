@@ -97,28 +97,25 @@ export function MapView({
 
   const mowerDisplay = useMemo(() => {
     if (!telemetry || (telemetry.position.lat === 0 && telemetry.position.lng === 0)) return null;
-    if (trailRotationDeg === 0 && trailEastM === 0 && trailNorthM === 0) {
-      return { lat: telemetry.position.lat, lng: telemetry.position.lng };
-    }
-    const [lng, lat] = alignLonLat(
-      telemetry.position.lng,
-      telemetry.position.lat,
-      pivotLng,
-      pivotLat,
-      false,
-      false,
-      trailRotationDeg,
-      trailEastM,
-      trailNorthM
+    // Apply zone alignment first (same as trail/mow path)
+    const [lng1, lat1] = alignLonLat(
+      telemetry.position.lng, telemetry.position.lat,
+      pivotLng, pivotLat,
+      overlayMirrorEW, overlayMirrorNS, overlayRotationDeg, overlayEastM, overlayNorthM
     );
-    return { lat, lng };
+    // Then apply optional trail fine-tune
+    if (trailRotationDeg === 0 && trailEastM === 0 && trailNorthM === 0) {
+      return { lat: lat1, lng: lng1 };
+    }
+    const [lng2, lat2] = alignLonLat(
+      lng1, lat1, pivotLng, pivotLat,
+      false, false, trailRotationDeg, trailEastM, trailNorthM
+    );
+    return { lat: lat2, lng: lng2 };
   }, [
-    telemetry,
-    pivotLng,
-    pivotLat,
-    trailRotationDeg,
-    trailEastM,
-    trailNorthM,
+    telemetry, pivotLng, pivotLat,
+    overlayMirrorEW, overlayMirrorNS, overlayRotationDeg, overlayEastM, overlayNorthM,
+    trailRotationDeg, trailEastM, trailNorthM,
   ]);
 
   const dockDisplay = useMemo(() => {
@@ -225,22 +222,27 @@ export function MapView({
 
   const alignedTrailPoints = useMemo(() => {
     if (!trailPoints?.length) return trailPoints;
-    if (trailRotationDeg === 0 && trailEastM === 0 && trailNorthM === 0) return trailPoints;
     return trailPoints.map((p) => {
-      const [lng, lat] = alignLonLat(
-        p.lng,
-        p.lat,
-        pivotLng,
-        pivotLat,
-        false,
-        false,
-        trailRotationDeg,
-        trailEastM,
-        trailNorthM
+      // Apply zone alignment first (same coordinate source as mow path)
+      const [lng1, lat1] = alignLonLat(
+        p.lng, p.lat, pivotLng, pivotLat,
+        overlayMirrorEW, overlayMirrorNS, overlayRotationDeg, overlayEastM, overlayNorthM
       );
-      return { ...p, lat, lng };
+      // Then apply optional fine-tune trail adjustment on top
+      if (trailRotationDeg === 0 && trailEastM === 0 && trailNorthM === 0) {
+        return { ...p, lat: lat1, lng: lng1 };
+      }
+      const [lng2, lat2] = alignLonLat(
+        lng1, lat1, pivotLng, pivotLat,
+        false, false, trailRotationDeg, trailEastM, trailNorthM
+      );
+      return { ...p, lat: lat2, lng: lng2 };
     });
-  }, [trailPoints, pivotLng, pivotLat, trailRotationDeg, trailEastM, trailNorthM]);
+  }, [
+    trailPoints, pivotLng, pivotLat,
+    overlayMirrorEW, overlayMirrorNS, overlayRotationDeg, overlayEastM, overlayNorthM,
+    trailRotationDeg, trailEastM, trailNorthM,
+  ]);
 
   return (
     <MapContainer center={center} zoom={DEFAULT_ZOOM} maxZoom={21} className="map-container" style={{ height: '100%', width: '100%' }}>

@@ -228,9 +228,11 @@ async def get_mow_path():
 
 @router.post("/refresh")
 async def refresh_telemetry():
-    """Force re-request telemetry from mower via MQTT."""
-    ok = await client.request_telemetry()
-    return {"status": "requested" if ok else "failed"}
+    """Force re-request telemetry from mower via MQTT, then wait for a fresh response."""
+    await client.request_telemetry()
+    # Wait up to 4 s for the mower to deliver a fresh MQTT report
+    await asyncio.sleep(4)
+    return client.get_telemetry()
 
 
 @router.post("/reconnect")
