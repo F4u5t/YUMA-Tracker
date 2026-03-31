@@ -119,14 +119,14 @@ export interface TrailSession {
 
 /** Color per sys_status for trail rendering */
 export const STATUS_TRAIL_COLOR: Record<number, string> = {
-  13: '#22c55e',  // Mowing        — green
-  20: '#86efac',  // Manual Mowing — light green
+  13: '#38bdf8',  // Mowing        — sky blue
+  20: '#7dd3fc',  // Manual Mowing — light blue
   14: '#f97316',  // Returning     — orange
-  15: '#3b82f6',  // Charging      — blue
+  15: '#818cf8',  // Charging      — indigo
   19: '#eab308',  // Paused        — yellow
   11: '#a78bfa',  // Ready         — purple
 };
-export const DEFAULT_TRAIL_COLOR = '#94a3b8'; // slate for everything else
+export const DEFAULT_TRAIL_COLOR = '#38bdf8'; // sky blue for everything else
 
 export const SYS_STATUS_LABELS: Record<number, string> = {
   0: 'Not Active',

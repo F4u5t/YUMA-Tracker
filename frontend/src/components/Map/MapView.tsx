@@ -215,6 +215,33 @@ export function MapView({
     overlayNorthM,
   ]);
 
+  const alignedTrailPoints = useMemo(() => {
+    if (!trailPoints?.length) return trailPoints;
+    return trailPoints.map((p) => {
+      const [lng, lat] = alignLonLat(
+        p.lng,
+        p.lat,
+        pivotLng,
+        pivotLat,
+        overlayMirrorEW,
+        overlayMirrorNS,
+        overlayRotationDeg,
+        overlayEastM,
+        overlayNorthM
+      );
+      return { ...p, lat, lng };
+    });
+  }, [
+    trailPoints,
+    pivotLng,
+    pivotLat,
+    overlayMirrorEW,
+    overlayMirrorNS,
+    overlayRotationDeg,
+    overlayEastM,
+    overlayNorthM,
+  ]);
+
   return (
     <MapContainer center={center} zoom={DEFAULT_ZOOM} maxZoom={21} className="map-container" style={{ height: '100%', width: '100%' }}>
       <FitBounds boundaries={alignedBoundaries} />
@@ -260,8 +287,8 @@ export function MapView({
         <DockMarker position={dockDisplay} />
       )}
       {showHeatmap && <SatelliteHeatmap samples={alignedSatSamples} />}
-      {trailPoints && trailPoints.length > 1 && (
-        <TrailLayer points={trailPoints} />
+      {alignedTrailPoints && alignedTrailPoints.length > 1 && (
+        <TrailLayer points={alignedTrailPoints} />
       )}
     </MapContainer>
   );
