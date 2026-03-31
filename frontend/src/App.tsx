@@ -34,6 +34,7 @@ function App() {
   const [selectedTaskZones, setSelectedTaskZones] = useState<number[]>([]);
   const [activeTab, setActiveTab] = useState<SidebarTab>('dashboard');
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [activeTaskName, setActiveTaskName] = useState('');
   const [showAlignControls, setShowAlignControls] = useState(false);
 
   const { activeSession, sessions, clearSessions } = useBatteryTracker(telemetry, activeTaskName);
