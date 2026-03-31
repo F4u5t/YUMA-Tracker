@@ -74,16 +74,36 @@ function App() {
   // Trail points to show: replay session if selected, otherwise live
   const displayTrail = replaySession ? replaySession.points : liveTrail;
 
-  // Load map data on mount
+  // Load map data on mount — retry until successful
   useEffect(() => {
-    getBoundaries().then(setBoundaries).catch(console.error);
-    getMowPath().then(setMowPath).catch(console.error);
+    let cancelled = false;
 
-    // Refresh mow path periodically
+    const fetchWithRetry = <T,>(
+      fn: () => Promise<T>,
+      setter: (v: T) => void,
+      interval = 3000,
+    ) => {
+      const attempt = () => {
+        if (cancelled) return;
+        fn()
+          .then((data) => { if (!cancelled) setter(data); })
+          .catch(() => { if (!cancelled) setTimeout(attempt, interval); });
+      };
+      attempt();
+    };
+
+    fetchWithRetry(getBoundaries, setBoundaries);
+    fetchWithRetry(getMowPath, setMowPath);
+
+    // Refresh mow path periodically after initial load
     const interval = setInterval(() => {
       getMowPath().then(setMowPath).catch(() => {});
     }, 15000);
-    return () => clearInterval(interval);
+
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+    };
   }, []);
 
   useEffect(() => {
@@ -105,10 +125,12 @@ function App() {
 
   return (
     <div className="app">
-      {loading && (
+      {(loading || !boundaries) && (
         <div className="loading-screen">
           <div className="loading-spinner" />
-          <p className="loading-text">Connecting to mower…</p>
+          <p className="loading-text">
+            {loading ? 'Connecting to mower…' : 'Loading map zones…'}
+          </p>
         </div>
       )}
       {/* Top bar */}
