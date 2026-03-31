@@ -50,14 +50,16 @@ export function MowerStatus({ telemetry, connected: wsConnected }: MowerStatusPr
           <span className="status-value">{wsConnected ? 'Live' : '—'}</span>
         </div>
       </div>
-      <button
-        className="btn btn-blue"
-        style={{ marginTop: '8px', width: '100%' }}
-        onClick={handleReconnect}
-        disabled={reconnecting}
-      >
-        {reconnecting ? '⟳ Reconnecting…' : '⟳ Reconnect'}
-      </button>
+      {!(wsConnected && telemetry !== null && online) && (
+        <button
+          className="btn btn-blue"
+          style={{ marginTop: '8px', width: '100%' }}
+          onClick={handleReconnect}
+          disabled={reconnecting}
+        >
+          {reconnecting ? '⟳ Reconnecting…' : '⟳ Reconnect'}
+        </button>
+      )}
     </div>
   );
 }
