@@ -61,6 +61,10 @@ export interface OverlaySettings {
   rot: number;
   eastM: number;
   northM: number;
+  /** Independent alignment for trail/track points (GPS coords, separate from zone projection) */
+  trailRot: number;
+  trailEastM: number;
+  trailNorthM: number;
 }
 
 export function getOverlaySettings() {

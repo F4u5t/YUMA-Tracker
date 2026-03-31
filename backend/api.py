@@ -40,6 +40,10 @@ class OverlaySettings(BaseModel):
     rot: float = 0.0
     eastM: float = 0.0
     northM: float = 0.0
+    # Independent alignment for trail/track points (real GPS, separate from zone projection)
+    trailRot: float = 0.0
+    trailEastM: float = 0.0
+    trailNorthM: float = 0.0
 
 
 @router.get("/status")

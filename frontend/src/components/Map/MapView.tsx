@@ -26,6 +26,10 @@ interface MapViewProps {
   overlayRotationDeg: number;
   overlayEastM: number;
   overlayNorthM: number;
+  /** Separate alignment applied only to trail points (independent of zone overlay) */
+  trailRotationDeg: number;
+  trailEastM: number;
+  trailNorthM: number;
 }
 
 const DEFAULT_CENTER: [number, number] = [36.601, -82.114]; // Bristol VA fallback
@@ -81,6 +85,9 @@ export function MapView({
   overlayRotationDeg,
   overlayEastM,
   overlayNorthM,
+  trailRotationDeg,
+  trailEastM,
+  trailNorthM,
 }: MapViewProps) {
   // Never use mower as pivot (mirror/rotate would leave the mower icon fixed vs moving polygons).
   const { pivotLat, pivotLng } = useMemo(
@@ -217,30 +224,22 @@ export function MapView({
 
   const alignedTrailPoints = useMemo(() => {
     if (!trailPoints?.length) return trailPoints;
+    if (trailRotationDeg === 0 && trailEastM === 0 && trailNorthM === 0) return trailPoints;
     return trailPoints.map((p) => {
       const [lng, lat] = alignLonLat(
         p.lng,
         p.lat,
         pivotLng,
         pivotLat,
-        overlayMirrorEW,
-        overlayMirrorNS,
-        overlayRotationDeg,
-        overlayEastM,
-        overlayNorthM
+        false,
+        false,
+        trailRotationDeg,
+        trailEastM,
+        trailNorthM
       );
       return { ...p, lat, lng };
     });
-  }, [
-    trailPoints,
-    pivotLng,
-    pivotLat,
-    overlayMirrorEW,
-    overlayMirrorNS,
-    overlayRotationDeg,
-    overlayEastM,
-    overlayNorthM,
-  ]);
+  }, [trailPoints, pivotLng, pivotLat, trailRotationDeg, trailEastM, trailNorthM]);
 
   return (
     <MapContainer center={center} zoom={DEFAULT_ZOOM} maxZoom={21} className="map-container" style={{ height: '100%', width: '100%' }}>

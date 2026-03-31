@@ -25,6 +25,9 @@ interface OverlayAlign {
 
 const OVERLAY_DEFAULTS: OverlayAlign = { mirrorEW: false, mirrorNS: false, rot: 0, eastM: 0, northM: 0 };
 
+interface TrailAlign { rot: number; eastM: number; northM: number; }
+const TRAIL_ALIGN_DEFAULTS: TrailAlign = { rot: 0, eastM: 0, northM: 0 };
+
 // Legacy localStorage keys — used for one-time migration to server-side storage
 const OVERLAY_ALIGN_STORAGE = 'yuma_overlay_align';
 const LEGACY_MOW_PATH_ROT = 'yuma_mow_path_rotation_deg';
@@ -63,6 +66,8 @@ function App() {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [activeTaskName, setActiveTaskName] = useState('');
   const [showAlignControls, setShowAlignControls] = useState(false);
+  const [trailAlign, setTrailAlign] = useState<TrailAlign>(TRAIL_ALIGN_DEFAULTS);
+  const [showTrailAlignControls, setShowTrailAlignControls] = useState(false);
   const overlayReady = useRef(false);
 
   const { activeSession, sessions, clearSessions } = useBatteryTracker(telemetry, activeTaskName);
@@ -83,12 +88,13 @@ function App() {
             const legacy = readLegacyOverlay();
             if (legacy) {
               setOverlayAlign(legacy);
-              saveOverlaySettings(legacy).catch(() => {});
+              saveOverlaySettings({ ...legacy, trailRot: 0, trailEastM: 0, trailNorthM: 0 }).catch(() => {});
               overlayReady.current = true;
               return;
             }
           }
           setOverlayAlign(s as OverlayAlign);
+          setTrailAlign({ rot: s.trailRot ?? 0, eastM: s.trailEastM ?? 0, northM: s.trailNorthM ?? 0 });
           overlayReady.current = true;
         })
         .catch(() => { if (!cancelled) setTimeout(tryLoad, 3000); });
@@ -132,9 +138,16 @@ function App() {
   // Debounced save — only after initial server load to avoid overwriting with defaults
   useEffect(() => {
     if (!overlayReady.current) return;
-    const t = setTimeout(() => { saveOverlaySettings(overlayAlign).catch(() => {}); }, 600);
+    const t = setTimeout(() => {
+      saveOverlaySettings({
+        ...overlayAlign,
+        trailRot: trailAlign.rot,
+        trailEastM: trailAlign.eastM,
+        trailNorthM: trailAlign.northM,
+      }).catch(() => {});
+    }, 600);
     return () => clearTimeout(t);
-  }, [overlayAlign]);
+  }, [overlayAlign, trailAlign]);
 
   const handleSelectTask = useCallback((zoneHashs: number[]) => {
     setSelectedTaskZones(zoneHashs);
@@ -261,6 +274,58 @@ function App() {
               </button>
             </div>
           )}
+          <button
+            type="button"
+            className={`btn-align-toggle ${showTrailAlignControls ? 'active' : ''}`}
+            onClick={() => setShowTrailAlignControls((v) => !v)}
+            title="Adjust trail alignment independently from zones"
+          >
+            ⊹ Trail
+          </button>
+          {showTrailAlignControls && (
+            <div className="overlay-align" title="Shift/rotate trail points independently from zone overlay">
+              <label htmlFor="trail-rot">°</label>
+              <input
+                id="trail-rot"
+                type="range"
+                min="-90"
+                max="90"
+                step="0.5"
+                value={trailAlign.rot}
+                onChange={(e) => setTrailAlign((o) => ({ ...o, rot: parseFloat(e.target.value) }))}
+              />
+              <span className="overlay-align-value">{trailAlign.rot.toFixed(1)}°</span>
+              <label htmlFor="trail-e">E</label>
+              <input
+                id="trail-e"
+                type="range"
+                min="-40"
+                max="40"
+                step="1"
+                value={trailAlign.eastM}
+                onChange={(e) => setTrailAlign((o) => ({ ...o, eastM: parseFloat(e.target.value) }))}
+              />
+              <span className="overlay-align-value">{trailAlign.eastM}m</span>
+              <label htmlFor="trail-n">N</label>
+              <input
+                id="trail-n"
+                type="range"
+                min="-40"
+                max="40"
+                step="1"
+                value={trailAlign.northM}
+                onChange={(e) => setTrailAlign((o) => ({ ...o, northM: parseFloat(e.target.value) }))}
+              />
+              <span className="overlay-align-value">{trailAlign.northM}m</span>
+              <button
+                type="button"
+                className="overlay-align-reset"
+                onClick={() => setTrailAlign(TRAIL_ALIGN_DEFAULTS)}
+              >
+                Reset
+              </button>
+            </div>
+          )}
           <span className={`connection-dot ${connected ? 'connected' : 'disconnected'}`} />
         </div>
       </header>
@@ -281,6 +346,9 @@ function App() {
             overlayRotationDeg={overlayAlign.rot}
             overlayEastM={overlayAlign.eastM}
             overlayNorthM={overlayAlign.northM}
+            trailRotationDeg={trailAlign.rot}
+            trailEastM={trailAlign.eastM}
+            trailNorthM={trailAlign.northM}
           />
         </div>
 
