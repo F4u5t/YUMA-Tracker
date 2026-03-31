@@ -1,13 +1,45 @@
 """REST API endpoints for Faust Lawn Maintenance."""
 
 import asyncio
+import json
+import os
+from pathlib import Path
 
 from fastapi import APIRouter, HTTPException
+from pydantic import BaseModel
 
 from mower_client import MowerClient
 
 router = APIRouter(prefix="/api")
 client = MowerClient()
+
+# Overlay alignment persisted server-side so all browsers share the same settings
+_OVERLAY_FILE = Path(__file__).parent / "overlay_settings.json"
+_OVERLAY_DEFAULTS: dict = {"mirrorEW": False, "mirrorNS": False, "rot": 0.0, "eastM": 0.0, "northM": 0.0}
+
+
+def _load_overlay() -> dict:
+    try:
+        if _OVERLAY_FILE.exists():
+            return {**_OVERLAY_DEFAULTS, **json.loads(_OVERLAY_FILE.read_text())}
+    except Exception:
+        pass
+    return dict(_OVERLAY_DEFAULTS)
+
+
+def _save_overlay(data: dict) -> None:
+    try:
+        _OVERLAY_FILE.write_text(json.dumps(data))
+    except Exception:
+        pass
+
+
+class OverlaySettings(BaseModel):
+    mirrorEW: bool = False
+    mirrorNS: bool = False
+    rot: float = 0.0
+    eastM: float = 0.0
+    northM: float = 0.0
 
 
 @router.get("/status")
@@ -200,6 +232,20 @@ async def reconnect():
     """Disconnect and reconnect the mower client (resets MQTT + token)."""
     asyncio.create_task(client.reconnect())
     return {"status": "reconnecting"}
+
+
+@router.get("/settings/overlay")
+async def get_overlay_settings():
+    """Return persisted overlay alignment (shared across all browsers)."""
+    return _load_overlay()
+
+
+@router.put("/settings/overlay")
+async def put_overlay_settings(settings: OverlaySettings):
+    """Save overlay alignment server-side so all browsers share it."""
+    data = settings.model_dump()
+    _save_overlay(data)
+    return data
 
 
 @router.get("/camera/token")

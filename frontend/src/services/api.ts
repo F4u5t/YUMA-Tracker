@@ -55,5 +55,25 @@ export function reconnect() {
   return request<{ status: string }>('/reconnect', { method: 'POST' });
 }
 
+export interface OverlaySettings {
+  mirrorEW: boolean;
+  mirrorNS: boolean;
+  rot: number;
+  eastM: number;
+  northM: number;
+}
+
+export function getOverlaySettings() {
+  return request<OverlaySettings>('/settings/overlay');
+}
+
+export function saveOverlaySettings(s: OverlaySettings) {
+  return request<OverlaySettings>('/settings/overlay', {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(s),
+  });
+}
+
 // WebSocket base URL
 export const WS_URL = `${WS_PROTOCOL}://${API_HOST}${PORT_SUFFIX}/ws/telemetry`;
