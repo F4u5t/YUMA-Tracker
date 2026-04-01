@@ -46,7 +46,7 @@ interface OverlayAlign {
   northM: number;
 }
 
-const OVERLAY_DEFAULTS: OverlayAlign = { mirrorEW: false, mirrorNS: false, rot: -36, eastM: 5, northM: -32 };
+const OVERLAY_DEFAULTS: OverlayAlign = { mirrorEW: false, mirrorNS: false, rot: -36, eastM: 2, northM: -1 };
 
 interface TrailAlign { mirrorEW: boolean; mirrorNS: boolean; rot: number; eastM: number; northM: number; }
 const TRAIL_ALIGN_DEFAULTS: TrailAlign = { mirrorEW: false, mirrorNS: false, rot: 0, eastM: 0, northM: 0 };
