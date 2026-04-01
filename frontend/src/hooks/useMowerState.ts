@@ -18,6 +18,10 @@ export interface MowerState {
   /** Seconds since the last telemetry update (0 = just received) */
   dataAgeSeconds: number;
   forceRefresh: () => Promise<void>;
+  /** How many times the WebSocket has reconnected since page load */
+  reconnectCount: number;
+  /** Timestamp of the most recent WebSocket disconnect, or null */
+  lastDisconnectAt: Date | null;
 }
 
 export function useMowerState(): MowerState {
