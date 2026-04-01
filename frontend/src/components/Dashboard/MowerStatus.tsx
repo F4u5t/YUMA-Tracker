@@ -6,9 +6,16 @@ import { reconnect } from '../../services/api';
 interface MowerStatusProps {
   telemetry: Telemetry | null;
   connected: boolean;
+  dataAgeSeconds: number;
+  stale: boolean;
 }
 
-export function MowerStatus({ telemetry, connected: wsConnected }: MowerStatusProps) {
+function fmtAge(s: number): string {
+  if (s < 60) return `${s}s ago`;
+  return `${Math.floor(s / 60)}m ${s % 60}s ago`;
+}
+
+export function MowerStatus({ telemetry, connected: wsConnected, dataAgeSeconds, stale }: MowerStatusProps) {
   const statusLabel = SYS_STATUS_LABELS[telemetry?.sys_status ?? 0] ?? `Status ${telemetry?.sys_status}`;
   const online = telemetry?.online ?? false;
   const [reconnecting, setReconnecting] = useState(false);
@@ -20,9 +27,12 @@ export function MowerStatus({ telemetry, connected: wsConnected }: MowerStatusPr
     } catch {
       // backend may briefly be unreachable while reconnecting — that's expected
     }
-    // Wait a few seconds then clear the spinner (backend reconnects async)
     setTimeout(() => setReconnecting(false), 8000);
   };
+
+  const ageColor = stale && dataAgeSeconds >= 60 ? '#ef4444'
+    : stale ? '#f59e0b'
+    : '#22c55e';
 
   return (
     <div className="panel-card">
@@ -38,6 +48,12 @@ export function MowerStatus({ telemetry, connected: wsConnected }: MowerStatusPr
           <span className="status-value">{statusLabel}</span>
         </div>
         <div className="status-row">
+          <span className="status-label">Data age</span>
+          <span className="status-value" style={{ color: ageColor }}>
+            {dataAgeSeconds === 0 ? 'Live' : fmtAge(dataAgeSeconds)}
+          </span>
+        </div>
+        <div className="status-row">
           <span className="status-label">WiFi</span>
           <span className="status-value">{telemetry?.wifi_rssi ?? 0} dBm</span>
         </div>
@@ -46,8 +62,8 @@ export function MowerStatus({ telemetry, connected: wsConnected }: MowerStatusPr
           <span className="status-value">{telemetry?.orientation ?? 0}°</span>
         </div>
         <div className="status-row">
-          <span className="status-label">UI link</span>
-          <span className="status-value">{wsConnected ? 'Live' : '—'}</span>
+          <span className="status-label">Link</span>
+          <span className="status-value">{wsConnected ? '🟢 Live WS' : '🔴 Disconnected'}</span>
         </div>
       </div>
       {!(wsConnected && telemetry !== null && online) && (

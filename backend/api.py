@@ -13,6 +13,18 @@ from mower_client import MowerClient
 router = APIRouter(prefix="/api")
 client = MowerClient()
 
+@router.get("/health")
+async def health():
+    """Quick liveness check — returns mower connection state."""
+    tel = client.get_telemetry()
+    connected = "error" not in tel
+    return {
+        "ok": True,
+        "mower_connected": connected,
+        "online": tel.get("online", False) if connected else False,
+        "device": tel.get("device_name") if connected else None,
+    }
+
 # Overlay alignment persisted server-side so all browsers share the same settings
 _OVERLAY_FILE = Path(__file__).parent / "overlay_settings.json"
 _OVERLAY_DEFAULTS: dict = {"mirrorEW": False, "mirrorNS": False, "rot": 0.0, "eastM": 0.0, "northM": 0.0}

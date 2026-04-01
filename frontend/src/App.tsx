@@ -1,16 +1,17 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useMowerState } from './hooks/useMowerState';
+import { useMapData } from './hooks/useMapData';
 import { useBatteryTracker } from './hooks/useBatteryTracker';
 import { useTrailTracker } from './hooks/useTrailTracker';
 import { MapView } from './components/Map/MapView';
 import { BatteryGauge } from './components/Dashboard/BatteryGauge';
 import { SatelliteInfo } from './components/Dashboard/SatelliteInfo';
 import { MowerStatus } from './components/Dashboard/MowerStatus';
+import { DataAlertBanner } from './components/Dashboard/DataAlertBanner';
 import { TaskList } from './components/Tasks/TaskList';
 import { CameraPanel } from './components/Camera/CameraPanel';
 import { SessionHistory } from './components/Dashboard/SessionHistory';
-import { getBoundaries, getMowPath, getOverlaySettings, saveOverlaySettings } from './services/api';
-import type { GeoJSONFeatureCollection } from './types/mower';
+import { getOverlaySettings, saveOverlaySettings } from './services/api';
 import './App.css';
 
 type SidebarTab = 'dashboard' | 'tasks' | 'camera' | 'trail';
@@ -77,9 +78,8 @@ function readLegacyOverlay(): OverlayAlign | null {
 }
 
 function App() {
-  const { telemetry, satSamples, connected, loading, forceRefresh } = useMowerState();
-  const [boundaries, setBoundaries] = useState<GeoJSONFeatureCollection | null>(null);
-  const [mowPath, setMowPath] = useState<GeoJSONFeatureCollection | null>(null);
+  const { telemetry, satSamples, connected, loading, stale, dataAgeSeconds, forceRefresh } = useMowerState();
+  const { boundaries, mowPath, boundariesStatus, boundariesMessage, retryBoundaries } = useMapData(connected && telemetry !== null);
   const [overlayAlign, setOverlayAlign] = useState<OverlayAlign>(OVERLAY_DEFAULTS);
   const [showHeatmap, setShowHeatmap] = useState(false);
   const [selectedTaskZones, setSelectedTaskZones] = useState<number[]>([]);
@@ -123,37 +123,7 @@ function App() {
     return () => { cancelled = true; };
   }, []);
 
-  // Load map data on mount — retry until successful
-  useEffect(() => {
-    let cancelled = false;
-
-    const fetchWithRetry = <T,>(
-      fn: () => Promise<T>,
-      setter: (v: T) => void,
-      interval = 3000,
-    ) => {
-      const attempt = () => {
-        if (cancelled) return;
-        fn()
-          .then((data) => { if (!cancelled) setter(data); })
-          .catch(() => { if (!cancelled) setTimeout(attempt, interval); });
-      };
-      attempt();
-    };
-
-    fetchWithRetry(getBoundaries, setBoundaries);
-    fetchWithRetry(getMowPath, setMowPath);
-
-    // Refresh mow path periodically after initial load
-    const interval = setInterval(() => {
-      getMowPath().then(setMowPath).catch(() => {});
-    }, 15000);
-
-    return () => {
-      cancelled = true;
-      clearInterval(interval);
-    };
-  }, []);
+  // Load map data on mount — handled by useMapData hook
 
   // Debounced save — only after initial server load to avoid overwriting with defaults
   useEffect(() => {
@@ -182,7 +152,7 @@ function App() {
 
   return (
     <div className="app">
-      {(loading || !boundaries) && (
+      {(loading || boundariesStatus === 'loading') && (
         <div className="loading-screen">
           <div className="loading-spinner" />
           <p className="loading-text">
@@ -367,6 +337,14 @@ function App() {
           <span className={`connection-dot ${connected ? 'connected' : 'disconnected'}`} />
         </div>
       </header>
+      <DataAlertBanner
+        wsConnected={connected}
+        stale={stale}
+        dataAgeSeconds={dataAgeSeconds}
+        boundariesStatus={boundariesStatus}
+        boundariesMessage={boundariesMessage}
+        onRetryBoundaries={retryBoundaries}
+      />
 
       <div className="main-content">
         {/* Map */}
@@ -425,7 +403,12 @@ function App() {
             <div className="sidebar-content">
               {activeTab === 'dashboard' && (
                 <>
-                  <MowerStatus telemetry={telemetry} connected={connected} />
+                  <MowerStatus
+                    telemetry={telemetry}
+                    connected={connected}
+                    dataAgeSeconds={dataAgeSeconds}
+                    stale={stale}
+                  />
                   <BatteryGauge
                     telemetry={telemetry}
                     activeSession={activeSession}
