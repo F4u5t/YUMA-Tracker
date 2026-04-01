@@ -4,7 +4,7 @@ const API_PORT = IS_DEV ? 18080 : Number(window.location.port) || (window.locati
 const API_PROTOCOL = window.location.protocol === 'https:' ? 'https' : 'http';
 const WS_PROTOCOL = window.location.protocol === 'https:' ? 'wss' : 'ws';
 const PORT_SUFFIX = IS_DEV ? `:${API_PORT}` : (window.location.port ? `:${window.location.port}` : '');
-const API_BASE = `${API_PROTOCOL}://${API_HOST}${PORT_SUFFIX}/api`;
+export const API_BASE = `${API_PROTOCOL}://${API_HOST}${PORT_SUFFIX}/api`;
 
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
   const res = await fetch(`${API_BASE}${path}`, options);

@@ -86,7 +86,7 @@ export function useMowerState(): MowerState {
     }
   }, [applyTelemetry]);
 
-  const { connected } = useWebSocket(handleMessage);
+  const { connected, reconnectCount, lastDisconnectAt } = useWebSocket(handleMessage);
 
   const forceRefresh = useCallback(async () => {
     const data = await refreshTelemetry();
@@ -95,5 +95,5 @@ export function useMowerState(): MowerState {
 
   const stale = hasData.current && dataAgeSeconds >= STALE_THRESHOLD_S;
 
-  return { telemetry, satSamples, connected, loading, stale, dataAgeSeconds, forceRefresh };
+  return { telemetry, satSamples, connected, loading, stale, dataAgeSeconds, forceRefresh, reconnectCount, lastDisconnectAt };
 }

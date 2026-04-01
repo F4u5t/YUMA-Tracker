@@ -8,6 +8,7 @@ import { BatteryGauge } from './components/Dashboard/BatteryGauge';
 import { SatelliteInfo } from './components/Dashboard/SatelliteInfo';
 import { MowerStatus } from './components/Dashboard/MowerStatus';
 import { DataAlertBanner } from './components/Dashboard/DataAlertBanner';
+import { DiagnosticsPanel } from './components/Dashboard/DiagnosticsPanel';
 import { TaskList } from './components/Tasks/TaskList';
 import { CameraPanel } from './components/Camera/CameraPanel';
 import { SessionHistory } from './components/Dashboard/SessionHistory';
@@ -78,7 +79,7 @@ function readLegacyOverlay(): OverlayAlign | null {
 }
 
 function App() {
-  const { telemetry, satSamples, connected, loading, stale, dataAgeSeconds, forceRefresh } = useMowerState();
+  const { telemetry, satSamples, connected, loading, stale, dataAgeSeconds, forceRefresh, reconnectCount, lastDisconnectAt } = useMowerState();
   const { boundaries, mowPath, boundariesStatus, boundariesMessage, retryBoundaries } = useMapData(connected && telemetry !== null);
   const [overlayAlign, setOverlayAlign] = useState<OverlayAlign>(OVERLAY_DEFAULTS);
   const [showHeatmap, setShowHeatmap] = useState(false);
@@ -417,6 +418,7 @@ function App() {
                   />
                   <SatelliteInfo telemetry={telemetry} />
                   <RefreshButton forceRefresh={forceRefresh} />
+                  <DiagnosticsPanel wsReconnectCount={reconnectCount} lastDisconnectAt={lastDisconnectAt} />
                 </>
               )}
               {activeTab === 'tasks' && (

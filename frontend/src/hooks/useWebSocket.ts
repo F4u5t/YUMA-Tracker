@@ -5,6 +5,8 @@ import { WS_URL } from '../services/api';
 export function useWebSocket(onMessage: (msg: WSMessage) => void) {
   const wsRef = useRef<WebSocket | null>(null);
   const [connected, setConnected] = useState(false);
+  const [reconnectCount, setReconnectCount] = useState(0);
+  const [lastDisconnectAt, setLastDisconnectAt] = useState<Date | null>(null);
   const reconnectTimeout = useRef<ReturnType<typeof setTimeout>>(undefined);
   const onMessageRef = useRef(onMessage);
   onMessageRef.current = onMessage;
@@ -31,6 +33,8 @@ export function useWebSocket(onMessage: (msg: WSMessage) => void) {
 
     ws.onclose = () => {
       setConnected(false);
+      setLastDisconnectAt(new Date());
+      setReconnectCount(c => c + 1);
       console.log('[WS] Disconnected — reconnecting in 3s');
       reconnectTimeout.current = setTimeout(connect, 3000);
     };
@@ -58,5 +62,5 @@ export function useWebSocket(onMessage: (msg: WSMessage) => void) {
     return () => clearInterval(interval);
   }, []);
 
-  return { connected };
+  return { connected, reconnectCount, lastDisconnectAt };
 }

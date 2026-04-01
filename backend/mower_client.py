@@ -128,6 +128,14 @@ class MowerClient:
         self._ws_clients: list[Any] = []
         self._telemetry_task: asyncio.Task | None = None
         self._last_state: dict = {}
+        # Diagnostics / health tracking
+        self._connect_attempts: int = 0
+        self._connect_errors: list[str] = []  # last 5 errors
+        self._last_connected_at: str = ""
+        self._last_disconnected_at: str = ""
+        self._telemetry_loop_crashes: int = 0
+        self._ws_messages_sent: int = 0
+        self._ws_broadcast_errors: int = 0
 
     # -- Connection lifecycle --------------------------------------------------
 
@@ -142,7 +150,8 @@ class MowerClient:
 
         self._account = email
         self._mammotion = Mammotion()
-        _LOGGER.info("Logging into Mammotion cloud...")
+        self._connect_attempts += 1
+        _LOGGER.info("Logging into Mammotion cloud (attempt %d)...", self._connect_attempts)
 
         # Monkey-patch CloudIOTGateway to skip get_shared_notice_list
         # which crashes on pymammotion 0.7.x due to a ShareNotification model change
@@ -197,11 +206,13 @@ class MowerClient:
             device.cloud.set_notification_callback(self._on_mqtt_notification)
             _LOGGER.info("MQTT notification callback registered")
 
-        # Start the periodic broadcast loop
-        self._telemetry_task = asyncio.create_task(self._telemetry_loop())
+        # Start the periodic broadcast loop with watchdog wrapper
+        self._last_connected_at = datetime.now(timezone.utc).isoformat()
+        self._telemetry_task = asyncio.create_task(self._telemetry_loop_watchdog())
 
     async def disconnect(self) -> None:
         """Disconnect from cloud."""
+        self._last_disconnected_at = datetime.now(timezone.utc).isoformat()
         if self._telemetry_task:
             self._telemetry_task.cancel()
             self._telemetry_task = None
@@ -221,8 +232,10 @@ class MowerClient:
         try:
             await self.connect()
             _LOGGER.info("Reconnected successfully")
-        except Exception:
-            _LOGGER.exception("Reconnect failed")
+        except Exception as exc:
+            msg = f"{type(exc).__name__}: {exc}"
+            _LOGGER.exception("Reconnect failed: %s", msg)
+            self._connect_errors = (self._connect_errors + [msg])[-5:]
 
     # -- Internal helpers ------------------------------------------------------
 
@@ -295,6 +308,21 @@ class MowerClient:
             self._last_state = telemetry
         except Exception:
             _LOGGER.exception("Error in MQTT notification callback")
+
+    async def _telemetry_loop_watchdog(self) -> None:
+        """Wrap _telemetry_loop so a crash is logged and the loop restarts."""
+        while True:
+            try:
+                await self._telemetry_loop()
+            except asyncio.CancelledError:
+                _LOGGER.info("Telemetry loop cancelled")
+                return
+            except Exception as exc:
+                self._telemetry_loop_crashes += 1
+                msg = f"{type(exc).__name__}: {exc}"
+                _LOGGER.exception("Telemetry loop crashed (will restart in 5s): %s", msg)
+                self._connect_errors = (self._connect_errors + [f"loop crash: {msg}"])[-5:]
+                await asyncio.sleep(5)
 
     async def _telemetry_loop(self) -> None:
         """Broadcast telemetry every 2 s and keep MQTT data flowing."""
@@ -613,7 +641,9 @@ class MowerClient:
         for ws in self._ws_clients:
             try:
                 await ws.send_text(message)
+                self._ws_messages_sent += 1
             except Exception:
+                self._ws_broadcast_errors += 1
                 disconnected.append(ws)
         for ws in disconnected:
             self.unregister_ws(ws)

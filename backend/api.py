@@ -25,6 +25,37 @@ async def health():
         "device": tel.get("device_name") if connected else None,
     }
 
+
+@router.get("/diagnostics")
+async def diagnostics():
+    """Detailed internal state for troubleshooting connection drops."""
+    from datetime import datetime, timezone
+    tel = client.get_telemetry()
+    last_ts = tel.get("timestamp")
+    last_age_s: float | None = None
+    if last_ts:
+        try:
+            last_dt = datetime.fromisoformat(last_ts)
+            last_age_s = round((datetime.now(timezone.utc) - last_dt).total_seconds(), 1)
+        except Exception:
+            pass
+    return {
+        "ws_clients_connected": len(client._ws_clients),
+        "mower_connected": client._mammotion is not None,
+        "device_name": client._device_name,
+        "telemetry_task_alive": (
+            client._telemetry_task is not None and not client._telemetry_task.done()
+        ),
+        "telemetry_loop_crashes": client._telemetry_loop_crashes,
+        "connect_attempts": client._connect_attempts,
+        "connected_at": client._last_connected_at or None,
+        "disconnected_at": client._last_disconnected_at or None,
+        "ws_messages_sent": client._ws_messages_sent,
+        "ws_broadcast_errors": client._ws_broadcast_errors,
+        "last_errors": client._connect_errors,
+        "last_telemetry_age_s": last_age_s,
+    }
+
 # Overlay alignment persisted server-side so all browsers share the same settings
 _OVERLAY_FILE = Path(__file__).parent / "overlay_settings.json"
 _OVERLAY_DEFAULTS: dict = {"mirrorEW": False, "mirrorNS": False, "rot": 0.0, "eastM": 0.0, "northM": 0.0}
